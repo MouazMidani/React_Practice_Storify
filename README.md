@@ -1,4 +1,4 @@
-# StoreIt
+# Storify
 
 A modern, full-stack storage management solution inspired by giants like Google Drive and Dropbox.
 
@@ -61,7 +61,7 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 ## 🔐 Authentication Flow
 
-This is how the authentication flow works in **StoreIt**, from user interaction to fully authenticated state:
+This is how the authentication flow works in **Storify**, from user interaction to fully authenticated state:
 
 1. **User Initiates Login**  
    The user enters their email (and optionally full name for registration). The component calls `createAccount()` and `verifySecret()` functions.
