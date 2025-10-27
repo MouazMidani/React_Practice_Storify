@@ -10,7 +10,7 @@ This project is actively being developed. New features and improvements are bein
 ---
 
 🚀 **Hosted Latest Update**  
-Check out the current state of the application: [Hosted Demo Link](#)
+Check out the current state of the application: [Hosted Demo Link](https://react-practice-storify.onrender.com)
 
 ---
 
