@@ -23,7 +23,7 @@ export default function Index() {
 
   useEffect(() => {
     if (status === "authenticated")
-      router.replace("/(root)")
+      router.replace("/dashboard/page")
     else if (status === "unauthenticated")
       router.replace("/sign-in")
   }, [status])

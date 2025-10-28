@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Upload } from "lucide-react-native";
 import { Colors } from "../../Styleguide";
-import { useAppwriteUpload } from "../../lib/hooks/useAppwriteUpload";
+import { useAppwriteUpload } from "../../lib/hooks/useFiles";
 
 export default function FileUploader() {
   const { uploadMultiple } = useAppwriteUpload()

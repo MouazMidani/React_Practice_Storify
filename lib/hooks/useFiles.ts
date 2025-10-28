@@ -1,14 +1,13 @@
 import { useCallback } from "react"
 import { Platform } from "react-native"
-import { Appwrite } from "../stores/AppwriteStore"
+import { Appwrite, AppwriteAdmin } from "../stores/AppwriteStore"
 import { AuthStore } from "../stores/AuthStore"
 import { useUploadStore } from "../stores/UploadStore"
-let ID: any
-if (Platform.OS === "web") {
-  ID = require("appwrite").ID
-} else {
-  ID = require("react-native-appwrite").ID
-}
+import { getFileCategory, parseStringify } from "../util"
+import { getCurrentUser } from "./userHook"
+import { Models, Query } from "react-native-appwrite"
+import { appwriteConfig } from "../appwrite/config"
+const ID = Platform.OS === "web" ? require("appwrite").ID : require("react-native-appwrite").ID
 
 interface UploadItem {
   id: string
@@ -36,14 +35,13 @@ export function useAppwriteUpload() {
       try {
         currentAccount = await account.get()
       } catch (error: any) {
-        console.error("Session error:", error)
         throw new Error("You must be logged in to upload files. Please log in first.")
       }
 
       const uploadId = Math.random().toString(36).slice(2, 9)
-      const fileName = Platform.OS === "web" ? (file as File).name : (file as any).name
-      const fileSize = Platform.OS === "web" ? (file as File).size : (file as any).size
-      const fileType = Platform.OS === "web" ? (file as File).type : (file as any).type
+      const fileName = file.name
+      const fileSize = file.size
+      const fileType = file.type
 
       const newUpload: UploadItem = {
         id: uploadId,
@@ -80,45 +78,20 @@ export function useAppwriteUpload() {
             },
             (progressEvent: any) => {
               if (progressEvent.loaded && progressEvent.total) {
-                const progress = Math.floor(
-                  (progressEvent.loaded / progressEvent.total) * 100
-                )
+                const progress = Math.floor((progressEvent.loaded / progressEvent.total) * 100)
                 updateProgress(uploadId, progress)
               }
             }
-          )
-          
+          )  
         }
 
         const fileUrl = storage.getFileView(bucketId, uploaded.$id)
-
-        const getFileCategory = (mimeType: string): string => {
-          if (!mimeType) return "other"
-          
-          if (mimeType.startsWith("image/")) return "image"
-          if (mimeType.startsWith("video/")) return "video"
-          if (mimeType.startsWith("audio/")) return "audio"
-          if (
-            mimeType.includes("pdf") ||
-            mimeType.includes("document") ||
-            mimeType.includes("text") ||
-            mimeType.includes("msword") ||
-            mimeType.includes("wordprocessingml") ||
-            mimeType.includes("spreadsheet") ||
-            mimeType.includes("presentation")
-          ) return "document"
-          
-          return "other"
-        }
-
         const fileCategory = getFileCategory(fileType)
-
         const ownerId = currentAccount.$id
-
         const ownerValue = user?.$id || ownerId
 
         try {
-          const document = await databases.createDocument(
+          await databases.createDocument(
             databaseId, 
             collectionId, 
             ID.unique(), 
@@ -136,8 +109,7 @@ export function useAppwriteUpload() {
           )
 
         } catch (dbError: any) {
-          console.error("Database creation error:", dbError)
-          console.error("Error details:", {
+          console.error("Database error details:", {
             message: dbError.message,
             code: dbError.code,
             type: dbError.type,
@@ -145,10 +117,8 @@ export function useAppwriteUpload() {
           throw dbError
         }
 
-
         markComplete(uploadId)
         setTimeout(() => removeUpload(uploadId), 2500)
-
         return uploaded
       } catch (error: any) {
         updateProgress(uploadId, 100)
@@ -173,11 +143,51 @@ export function useAppwriteUpload() {
 
   const uploadMultiple = useCallback(
     async (files: FileList | Array<{ uri: string; name: string; type: string; size: number }>) => {
-      const uploads = Array.from(files).map((file) => uploadFile(file))
+      const uploads = Array.from(files as []).map((file) => uploadFile(file))
       await Promise.all(uploads)
     },
     [uploadFile]
   )
 
-  return { uploadFile, uploadMultiple }
+  return { uploadFile, uploadMultiple, getFiles }
+}
+
+const createQueries = (currentUser: any) => {
+  const queries = [
+    Query.or([
+      Query.equal('owner', [currentUser.$id]),
+      Query.contains('users', [currentUser.email]),
+    ]),
+  ]
+    // TODO: search, sort, limits ...
+  return queries
+}
+
+export const getFiles = async () => {
+  const { databases, account } = AppwriteAdmin.getState()
+
+  let currentUser
+  try {
+    const accountData = await account.get()  // throws if no session
+    currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.usersCollectionId,
+      [Query.equal("accountId", accountData.$id)],
+    ).then(res => res.documents[0])
+    
+    if (!currentUser) throw new Error("User not found")
+  } catch (err) {
+    console.error("No valid session. Please log in first.", err)
+    throw err
+  }
+
+  const queries = createQueries(currentUser)
+
+  const files = await databases.listDocuments(
+    appwriteConfig.databaseId,
+    appwriteConfig.filesCollectionId,
+    queries
+  )
+
+  return parseStringify(files)
 }
