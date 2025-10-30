@@ -1,29 +1,32 @@
 import {  useLocalSearchParams } from 'expo-router'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import Colors, { Colors as stColors, util as stUtil } from "../../../../Styleguide";
-import { getFiles } from "../../../../lib/hooks/useFiles";
-import { useEffect, useState } from 'react';
-import { parseStringify } from '../../../../lib/util';
-import Card from '../../../components/Card';
+import Colors, { Colors as stColors, util as stUtil } from "../../../../Styleguide"
+import { getFiles } from "../../../../lib/hooks/useFiles"
+import { useEffect, useState } from 'react'
+import { parseStringify } from '../../../../lib/util'
+import Card from '../../../components/Card'
+import ShareFileModal from "../../../modals/ShareModal"
+import { getCurrentUser } from '../../../../lib/hooks/userHook'
 export default function Index() {
     const { type } = useLocalSearchParams()
     const [files, setFiles] = useState([])
+    const [user, setUser] = useState()
     useEffect(() => {
       const _getFiles = async () => {
-        const _files = await getFiles();
-        setFiles(parseStringify(_files.documents));
-        console.log("-> ", files)
-      };
-    
-      _getFiles();
-    }, []);
+        const _files = await getFiles(type)
+        setFiles(parseStringify(_files.documents))
+        const _user = await getCurrentUser()
+        setUser(_user)
+      }
+      _getFiles()
+    }, [type])
     
     return (
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}> 
           <View style={{flex: 1}}>
-            <Text style={styles.title}>{ (type as string).charAt(0).toUpperCase() + type.slice(1) }</Text>
+            <Text style={styles.title}>{ (type as string).charAt(0).toUpperCase() + type.slice(1) + (!["dashboard", "media"].includes(type as string)  ? "s" : "") }</Text>
             <Text style={styles.totalStorag}>Total: <Text style={{fontWeight: 500}}>0.0 MB</Text></Text>
           </View>
           <Text> Sorting here </Text>
@@ -37,13 +40,9 @@ export default function Index() {
               ? (<Text>No files availble</Text>)
               : (files.map((f) => 
                 <Card 
+                  key={f.$id || f.name} 
                   file={f}
-                  onPress={() => console.log('Card pressed')}
-                  onRename={() => console.log('Rename')}
-                  onDetails={() => console.log('Details')}
-                  onShare={() => console.log('Share')}
-                  onDownload={() => console.log('Download')}
-                  onMoveToTrash={() => console.log('Move to trash')}
+                  user={user}
                 />
               ))
             }

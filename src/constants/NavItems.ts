@@ -2,17 +2,17 @@ export const navItems = [
     {
       name: "Dashboard",
       icon: require("../../assets/icons/Dashboard.png"),
-      url: "/"
+      url: "/dashboard"
     },
     {
       name: "Documents",
       icon: require("../../assets/icons/Folder.png"),
-      url: "/documents"
+      url: "/document"
     },
     {
       name: "Images",
       icon: require("../../assets/icons/Image.png"),
-      url: "/images"
+      url: "/image"
     },
     {
       name: "Media",
@@ -22,6 +22,6 @@ export const navItems = [
     {
       name: "Others",
       icon: require("../../assets/icons/Other.png"),
-      url: "/others"
+      url: "/other"
     }
   ]

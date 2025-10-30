@@ -1,95 +1,65 @@
-import { FC, useState } from 'react'
-import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, Pressable } from 'react-native'
-import Colors, { util } from '../../Styleguide'
-
+import React, { FC, useState } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity
+} from "react-native"
+import Colors, { util } from "../../Styleguide"
+import { downloadFile, formatDateTime, formatFileSize } from "../../lib/util"
+import { deleteFile, renameFile, shareFile } from "../../lib/hooks/useFiles"
+import CardModal from "./CardModal"
 interface FileDocument {
   name: string
   url: string
-  type: 'image' | 'document' | 'media' | 'audio' | 'other'
+  type: "image" | "document" | "media" | "audio" | "other"
   extension: string
   size: number
   $createdAt: string
   owner?: string
+  $id?: string
+  bucketField?: string
 }
 
 interface CardProps {
-  file: FileDocument
-  onPress?: () => void
-  onRename?: () => void
-  onDetails?: () => void
-  onShare?: () => void
-  onDownload?: () => void
-  onMoveToTrash?: () => void
+  file: FileDocument,
+  user: any
 }
 
-const Card: FC<CardProps> = ({ 
-  file, 
-  onPress,
-  onRename,
-  onDetails,
-  onShare,
-  onDownload,
-  onMoveToTrash
-}) => {
+const Card: FC<CardProps> = ({ file, user }) => {
   const [menuVisible, setMenuVisible] = useState(false)
+  const [modalVisible, setModalVisible] = useState(false)
+  const [modalType, setModalType] = useState<'details' | 'rename' | 'delete' | 'share'>('details')
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  }
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    })
-  }
-
-  const getFileIcon = (): string => {
-    switch (file.type) {
-      case 'image':
-        return '🖼️'
-      case 'document':
-        return '📄'
-      case 'media':
-        return '🎬'
-      case 'audio':
-        return '🎵'
-      default:
-        return '📎'
-    }
-  }
-
-  const handleMenuAction = (action: () => void | undefined) => {
+  const handleDownload = () => downloadFile(file.url)
+  const handleMenuAction = (action: () => void) => {
     setMenuVisible(false)
-    if (action) {
-      action()
-    }
+    action()
   }
 
   const menuItems = [
-    { label: 'Rename', icon: '✏️', action: onRename },
-    { label: 'Details', icon: 'ℹ️', action: onDetails },
-    { label: 'Share', icon: '📤', action: onShare },
-    { label: 'Download', icon: '⬇️', action: onDownload },
-    { label: 'Move to Trash', icon: '🗑️', action: onMoveToTrash, danger: true },
+    { label: "Rename", icon: "✏️", action: () => { setModalType("rename"); setModalVisible(true) }},
+    { label: "Details", icon: "ℹ️", action: () => { setModalType("details"); setModalVisible(true) }},
+    { label: "Share", icon: "📤", action: () => { setModalType("share"); setModalVisible(true) }},
+    { label: "Download", icon: "⬇️", action: handleDownload },
+    { label: "Move to Trash", icon: "🗑️", action: () => { setModalType("delete"); setModalVisible(true) }, danger: true}
   ]
 
-  const renderPreview = () => {
-    if (file.type === 'image') {
-      return (
-        <Image 
-          source={{ uri: file.url }} 
-          style={styles.imagePreview}
-          resizeMode="cover"
-        />
-      )
+  const getFileIcon = (): string => {
+    switch (file.type) {
+      case "image": return "🖼️"
+      case "document": return "📄"
+      case "media": return "🎬"
+      case "audio": return "🎵"
+      default: return "📎"
     }
-    
-    return (
+  }
+
+  const renderPreview = () => {
+    return file.type === "image" 
+    ? (<Image source={{ uri: file.url }} style={styles.imagePreview} resizeMode="cover" />)
+    : (
       <View style={styles.iconPreview}>
         <Text style={styles.fileIcon}>{getFileIcon()}</Text>
         <Text style={styles.extensionBadge}>{file.extension.toUpperCase()}</Text>
@@ -97,92 +67,100 @@ const Card: FC<CardProps> = ({
     )
   }
 
-  return (
-    <>
-      <View style={styles.cardWrapper}>
-        <TouchableOpacity 
-          style={styles.card} 
-          onPress={onPress}
-          activeOpacity={0.7}
-        >
-          <View style={styles.previewContainer}>
-            {renderPreview()}
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>{file.type}</Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.menuButton}
-              onPress={(e) => {
-                e.stopPropagation()
-                setMenuVisible(!menuVisible)
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuDot} />
-              <View style={styles.menuDot} />
-              <View style={styles.menuDot} />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.contentContainer}>
-            <Text style={styles.fileName} numberOfLines={2}>
-              {file.name}
-            </Text>
-            
-            <View style={styles.metaContainer}>
-              <Text style={styles.metaText}>{formatFileSize(file.size)}</Text>
-              <View style={styles.metaDivider} />
-              <Text style={styles.metaText}>{formatDate(file.$createdAt)}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+  const handleShare = (email: string) => {
+    if (email.trim()) {
+      shareFile(file.$id, [email])
+      setModalVisible(false)
+    }
+  }
 
-        {menuVisible && (
-          <View style={styles.menuContainer}>
-            {menuItems.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.menuItem,
-                  index === menuItems.length - 1 && styles.menuItemLast
-                ]}
-                onPress={() => handleMenuAction(item.action)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.menuIcon}>{item.icon}</Text>
-                <Text style={[
-                  styles.menuLabel,
-                  item.danger && styles.menuLabelDanger
-                ]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+  const handleDelete = () => {
+    file.$id && deleteFile(file.$id)
+    setModalVisible(false)
+  }
+
+  const handleRename = (newName: string) => {
+    renameFile(file.$id, newName)
+    setModalVisible(false)
+  }
+
+  return (
+    <View style={styles.cardWrapper}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => console.log(`Card pressed: ${file.name}`)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.previewContainer}>
+          {renderPreview()}
+
+          <View style={styles.typeBadge}>
+            <Text style={styles.typeBadgeText}>{file.type}</Text>
           </View>
-        )}
-      </View>
+
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={(e: any) => {
+              e.stopPropagation?.()
+              setMenuVisible(!menuVisible)
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuDot} />
+            <View style={styles.menuDot} />
+            <View style={styles.menuDot} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.contentContainer}>
+          <Text style={styles.fileName} numberOfLines={2}>
+            {file.name}
+          </Text>
+
+          <View style={styles.metaContainer}>
+            <Text style={styles.metaText}>{formatFileSize(file.size)}</Text>
+            <View style={styles.metaDivider} />
+            <Text style={styles.metaText}>{formatDateTime(file.$createdAt)}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
 
       {menuVisible && (
-        <Modal
-          visible={menuVisible}
-          transparent
-          animationType="none"
-          onRequestClose={() => setMenuVisible(false)}
-        >
-          <Pressable 
-            style={styles.modalOverlay}
-            onPress={() => setMenuVisible(false)}
-          />
-        </Modal>
+        <View style={styles.menuContainer}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={item.label + index}
+              style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
+              onPress={() => handleMenuAction(item.action)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <Text style={[styles.menuLabel, item.danger && styles.menuLabelDanger]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       )}
-    </>
+
+      <CardModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        type={modalType}
+        file={file}
+        user={user}
+        onRename={(newName) => handleRename(newName)}
+        onDelete={() => handleDelete}
+        onShare={(email: string) => handleShare(email)}
+      />
+    </View>
   )
 }
 
+
 const styles = StyleSheet.create({
   cardWrapper: {
-    position: 'relative',
+    position: "relative",
     marginVertical: 8,
     marginHorizontal: 16,
   },
@@ -191,7 +169,7 @@ const styles = StyleSheet.create({
     height: 320,
     backgroundColor: Colors.white,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
     shadowColor: Colors.oxfordBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -201,15 +179,15 @@ const styles = StyleSheet.create({
   previewContainer: {
     height: 200,
     backgroundColor: Colors.light[400],
-    position: 'relative',
+    position: "relative",
   },
   imagePreview: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   iconPreview: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     ...util.center,
     backgroundColor: Colors.platinumShades[200],
   },
@@ -224,11 +202,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 6,
-    fontWeight: '600',
-    overflow: 'hidden',
+    fontWeight: "600",
+    overflow: "hidden",
   },
   typeBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 12,
     left: 12,
     backgroundColor: Colors.orangeWeb,
@@ -239,11 +217,11 @@ const styles = StyleSheet.create({
   typeBadgeText: {
     ...util.caption,
     color: Colors.white,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
   menuButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 12,
     right: 12,
     backgroundColor: Colors.white,
@@ -267,17 +245,17 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
     height: 120,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   fileName: {
     ...util.subtitle1,
     color: Colors.oxfordBlue,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
   },
   metaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   metaText: {
     ...util.caption,
@@ -290,27 +268,38 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light[300],
     marginHorizontal: 8,
   },
+
   modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
+    zIndex: 1,
+  },
+  modalOverlayWrapper: {
     flex: 1,
+    zIndex: 2,
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 60,
+    paddingRight: 8
   },
   menuContainer: {
-    position: 'absolute',
-    top: 52,
-    right: 8,
+    position: "absolute",
+    top: 50,
+    right: 12,
     backgroundColor: Colors.white,
     borderRadius: 12,
-    minWidth: 180,
-    overflow: 'hidden',
+    minWidth: 160,
+    overflow: "hidden",
     shadowColor: Colors.oxfordBlue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 8,
-    zIndex: 1000,
+    zIndex: 999,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
@@ -326,10 +315,28 @@ const styles = StyleSheet.create({
   menuLabel: {
     ...util.body2,
     color: Colors.oxfordBlue,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   menuLabelDanger: {
     color: Colors.error,
+  },
+  cardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
+    zIndex: 1,
+  },
+  
+  cardMenuWrapper: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 12,
+    paddingRight: 12,
+    zIndex: 2,
   },
 })
 

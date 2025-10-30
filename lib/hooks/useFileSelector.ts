@@ -15,7 +15,6 @@ export function useFileSelector() {
       const result = await DocumentPicker.getDocumentAsync({ multiple: true });
       if (result.canceled) return null;
 
-      // Convert expo picker files to File-like objects
       return result.assets.map((asset) => ({
         name: asset.name,
         size: asset.size ?? 0,

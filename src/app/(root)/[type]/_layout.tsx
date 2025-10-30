@@ -7,9 +7,11 @@ import { getCurrentUser } from "../../../../lib/hooks/userHook"
 import { useEffect, useState } from "react"
 import Colors, { useResponsive } from "../../../../Styleguide"
 import UploadQueue from "../../../components/UploadQueue"
+
 export default function MainLayout() {
     const [fullName, setFullName] = useState("")
     const [email, setEmail] = useState("")
+
     const { isMd } = useResponsive()
     useEffect(() => {
         const getUser = async () => {
@@ -29,7 +31,8 @@ export default function MainLayout() {
             <View style={{flex:1, flexDirection: "column", height: "100%"}}>
                 {!isMd && (<MobileNavigation />)}
                 {isMd && (<Header />)}
-                <View style={{flex:1, backgroundColor: Colors.platinum, padding: 15, margin: 20, borderRadius: 20, zIndex: 10}}> {/* Main Content */}
+                {/* Main Content */}
+                <View style={{flex:1, backgroundColor: Colors.platinum, padding: 15, margin: 20, borderRadius: 20, zIndex: 10}}>
                     <Slot />
                 </View>
                 <UploadQueue/>

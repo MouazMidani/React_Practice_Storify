@@ -152,18 +152,21 @@ export function useAppwriteUpload() {
   return { uploadFile, uploadMultiple, getFiles }
 }
 
-const createQueries = (currentUser: any) => {
+const createQueries = (currentUser: any, type: string) => {
+  console.log("-> type is: ", type)
   const queries = [
-    Query.or([
+    Query.and([Query.or([
       Query.equal('owner', [currentUser.$id]),
       Query.contains('users', [currentUser.email]),
     ]),
+    Query.equal('type', type)
+  ])
   ]
     // TODO: search, sort, limits ...
   return queries
 }
 
-export const getFiles = async () => {
+export const getFiles = async (type: string = '') => {
   const { databases, account } = AppwriteAdmin.getState()
 
   let currentUser
@@ -181,7 +184,7 @@ export const getFiles = async () => {
     throw err
   }
 
-  const queries = createQueries(currentUser)
+  const queries = createQueries(currentUser, type)
 
   const files = await databases.listDocuments(
     appwriteConfig.databaseId,
@@ -190,4 +193,182 @@ export const getFiles = async () => {
   )
 
   return parseStringify(files)
+}
+
+export const renameFile = async (fileId: string, newName: string) => {
+  const { databases, account } = AppwriteAdmin.getState()
+
+  try {
+    const accountData = await account.get()
+    const currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.usersCollectionId,
+      [Query.equal("accountId", accountData.$id)],
+    ).then(res => res.documents[0])
+    
+    if (!currentUser) throw new Error("User not found")
+
+    const file = await databases.getDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId
+    )
+
+    if (file.owner !== currentUser.$id)
+      throw new Error("You don't have permission to rename this file")
+
+    const updatedFile = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId,
+      { name: newName }
+    )
+
+    return parseStringify(updatedFile)
+  } catch (err) {
+    console.error("Error renaming file:", err)
+    throw err
+  }
+}
+
+export function extractFileId(url: string): string | null {
+  const match = url.match(/\/files\/([^\/]+)\//);
+  return match ? match[1] : null;
+}
+
+export const deleteFile = async (fileId: string) => {
+  const { databases, storage, account } = AppwriteAdmin.getState()
+
+  try {
+    const accountData = await account.get()
+    const currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.usersCollectionId,
+      [Query.equal("accountId", accountData.$id)],
+    ).then(res => res.documents[0])
+    
+    if (!currentUser) throw new Error("User not found")
+
+    const file = await databases.getDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId
+    )
+    const bucketFileId = extractFileId(file.url)
+    if (file.owner !== currentUser.$id) {
+      throw new Error("You don't have permission to delete this file")
+    }
+
+    const deleteFile = await databases.deleteDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId
+    )
+    if(deleteFile){
+      await storage.deleteFile(appwriteConfig.bucketId, bucketFileId)
+    }
+    return { success: true, message: "File deleted successfully" }
+  } catch (err) {
+    console.error("Error deleting file:", err)
+    throw err
+  }
+}
+
+export const shareFile = async (fileId: string, userEmails: string[]) => {
+  const { databases, account } = AppwriteAdmin.getState()
+
+  try {
+    const accountData = await account.get()
+    const currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.usersCollectionId,
+      [Query.equal("accountId", accountData.$id)],
+    ).then(res => res.documents[0])
+    
+    if (!currentUser) throw new Error("User not found")
+
+    const file = await databases.getDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId
+    )
+
+    if (file.owner !== currentUser.$id) {
+      throw new Error("You don't have permission to share this file")
+    }
+
+    const sharedUserIds = await Promise.all(
+      userEmails.map(async (email) => {
+        const users = await databases.listDocuments(
+          appwriteConfig.databaseId,
+          appwriteConfig.usersCollectionId,
+          [Query.equal("email", email)]
+        )
+        return users.documents[0]?.$id
+      })
+    )
+
+    const validUserIds = sharedUserIds.filter(id => id !== undefined)
+
+    if (validUserIds.length === 0) {
+      throw new Error("No valid users found to share with")
+    }
+
+    const existingUsers = file.users || []
+    const updatedUsers = [...new Set([...existingUsers, ...validUserIds])]
+
+    const updatedFile = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId,
+      { users: updatedUsers }
+    )
+
+    return parseStringify(updatedFile)
+  } catch (err) {
+    console.error("Error sharing file:", err)
+    throw err
+  }
+}
+
+export const unshareFile = async (fileId: string, userIds: string[]) => {
+  const { databases, account } = AppwriteAdmin.getState()
+
+  try {
+    const accountData = await account.get()
+    const currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.usersCollectionId,
+      [Query.equal("accountId", accountData.$id)],
+    ).then(res => res.documents[0])
+    
+    if (!currentUser) throw new Error("User not found")
+
+    const file = await databases.getDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId
+    )
+
+    if (file.owner !== currentUser.$id) {
+      throw new Error("You don't have permission to unshare this file")
+    }
+
+    const existingUsers = file.users || []
+    const updatedUsers = existingUsers.filter(
+      (userId: string) => !userIds.includes(userId)
+    )
+
+    const updatedFile = await databases.updateDocument(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      fileId,
+      { users: updatedUsers }
+    )
+
+    return parseStringify(updatedFile)
+  } catch (err) {
+    console.error("Error unsharing file:", err)
+    throw err
+  }
 }
