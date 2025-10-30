@@ -89,3 +89,10 @@ Here are snapshots of the authentication flow:
 <img width="898" height="888" alt="Screenshot 2025-10-27 012021" src="https://github.com/user-attachments/assets/90619eb0-0955-4909-b187-adcd28e580aa" />
 <img width="892" height="878" alt="Screenshot 2025-10-27 012053" src="https://github.com/user-attachments/assets/7a48aa9f-57ca-42af-bc92-2655148fb5e7" />
 <img width="895" height="667" alt="Screenshot 2025-10-27 012119" src="https://github.com/user-attachments/assets/95164e50-b572-437a-9196-52ef4734f4c7" />
+
+
+### TODOS:
+1. ☐ Check overall re-rendering
+2. ☐ Improve the overall design
+3. ☐ Improve the userflow
+4. ☐ Improve the dashboard code quality 
