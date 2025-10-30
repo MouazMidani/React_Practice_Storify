@@ -88,7 +88,8 @@ export function useAppwriteUpload() {
         const fileUrl = storage.getFileView(bucketId, uploaded.$id)
         const fileCategory = getFileCategory(fileType)
         const ownerId = currentAccount.$id
-        const ownerValue = user?.$id || ownerId
+        const ownerValue = user?.$id
+        console.log("-> user: ", user)
 
         try {
           await databases.createDocument(

@@ -5,5 +5,4 @@ const Signup: FC = () => {
     <AuthForm type='sign-up'/>
   )
 }
-
 export default Signup

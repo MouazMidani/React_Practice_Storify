@@ -20,8 +20,6 @@ const AuthForm: FC<AuthFormProps> = ({ type }) => {
   
   const [accountId, setAccountId] = useState(null)
 
-  const [password, setPassword] = useState<string>("")
-  const [showPassword, setShowPassword] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string>("")
   
   const validateEmail = (value: string) => {
@@ -34,7 +32,7 @@ const AuthForm: FC<AuthFormProps> = ({ type }) => {
   const isSignUp = type === "sign-up"
 
   const handleSubmit = async () => {
-    console.log("-> ", { email, password, ...(isSignUp && { fullName }) })
+    console.log("-> ", { email, ...(isSignUp && { fullName }) })
     try {
         setIsLoading(() => true)
         console.log("-> here")
