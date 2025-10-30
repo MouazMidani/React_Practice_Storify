@@ -1,7 +1,7 @@
 import { FC, useMemo, useState } from 'react'
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { navItems } from '../constants/NavItems'
-import { useRouter } from 'expo-router'
+import { useRouter, usePathname } from 'expo-router'
 import { useResponsive, Colors, util } from '../../Styleguide'
 
 interface NavItem {
@@ -12,12 +12,13 @@ interface NavItem {
 
 const Sidebar: FC<{fullName: string, email: string}> = ({fullName, email}) => {
     const router = useRouter()
+    const pathname = usePathname()
     const { isLg, isMd, is2xl } = useResponsive()
     
     const [hoveredUrl, setHoveredUrl] = useState<string | null>(null) 
 
     const handleNavigation = (path: string) => router.navigate(path)
-    console.log("--> re-render")
+
     const sidebarWidth = isLg ? "20%" : 80 
     const logoMargin = isLg ? 20 : 10 
 
@@ -48,7 +49,9 @@ const Sidebar: FC<{fullName: string, email: string}> = ({fullName, email}) => {
             
             <View>
                 {navItems.map((nav: NavItem) => {
-                    const isSelected = nav.url.trim() === hoveredUrl?.trim()
+                    const isActive = pathname === nav.url
+                    const isHovered = nav.url.trim() === hoveredUrl?.trim()
+                    const isHighlighted = isActive || isHovered
                     
                     return (
                         <TouchableOpacity
@@ -59,7 +62,7 @@ const Sidebar: FC<{fullName: string, email: string}> = ({fullName, email}) => {
                             style={[
                                 style.navButton,
                                 {borderRadius: isLg ? 30 : 10},
-                                isSelected && style.navButtonSelected
+                                isHighlighted && style.navButtonSelected
                             ]}
                         >
                             <View style={[style.navItemContent, { 
@@ -72,12 +75,14 @@ const Sidebar: FC<{fullName: string, email: string}> = ({fullName, email}) => {
                                     style={[
                                         style.navIcon,
                                         {
-                                            tintColor: isSelected ? Colors.white : Colors.platinum 
+                                            tintColor: isHighlighted ? Colors.white : Colors.platinum 
                                         }
                                     ]}
                                 />
                                 {isLg && (
-                                    <Text style={[style.navText, {color: isSelected ? "white" : "black"}]}>{nav.name}</Text>
+                                    <Text style={[style.navText, {color: isHighlighted ? "white" : "black"}]}>
+                                        {nav.name}
+                                    </Text>
                                 )}
                             </View>
                         </TouchableOpacity>
