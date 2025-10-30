@@ -1,7 +1,21 @@
-import {FC} from 'react'
+import {FC, useRef} from 'react'
 import { Image, StyleSheet, TextInput, View } from 'react-native'
-
+import { useQueryStore } from '../../lib/stores/QueryStore';
+import { usePathname } from 'expo-router';
 const Search: FC = () => {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const setQueries = useQueryStore(state => state.setQueries)
+  const setSearch = useQueryStore(state => state.setSearch)
+  const type = usePathname().split('/')[1]
+  const handleSearch = (params: string) => {
+    setSearch(params)
+    if(timeoutRef.current)
+      clearTimeout(timeoutRef.current)
+    timeoutRef.current = setTimeout(() => {
+      setQueries(type)
+      clearTimeout(timeoutRef.current)
+    }, 500)
+  }
   return (
     <View style={style.searchBar}>
         <Image
@@ -11,6 +25,7 @@ const Search: FC = () => {
             style={style.input}
             placeholder='search for a file'
             placeholderTextColor={"#00000080"}
+            onChange={(e) => handleSearch(e.target.value)}
         />
     </View>
   )

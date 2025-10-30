@@ -4,9 +4,10 @@ import { Appwrite, AppwriteAdmin } from "../stores/AppwriteStore"
 import { AuthStore } from "../stores/AuthStore"
 import { useUploadStore } from "../stores/UploadStore"
 import { getFileCategory, parseStringify } from "../util"
-import { getCurrentUser } from "./userHook"
-import { Models, Query } from "react-native-appwrite"
+import { useQueryStore } from "../stores/QueryStore"
+import {  Query } from "react-native-appwrite"
 import { appwriteConfig } from "../appwrite/config"
+import { getCurrentUser } from "./userHook"
 const ID = Platform.OS === "web" ? require("appwrite").ID : require("react-native-appwrite").ID
 
 interface UploadItem {
@@ -22,7 +23,6 @@ export function useAppwriteUpload() {
   const { storage, databases, account } = Appwrite.getState()
   const { user } = AuthStore.getState()
   const { addUploads, updateProgress, markComplete, removeUpload } = useUploadStore()
-
   const bucketId = process.env.EXPO_PUBLIC_APPWRITE_BUCKET!
   const databaseId = process.env.EXPO_PUBLIC_APPWRITE_DATABASE!
   const collectionId = process.env.EXPO_PUBLIC_APPWRITE_FILES_COLLECTION!
@@ -153,23 +153,8 @@ export function useAppwriteUpload() {
   return { uploadFile, uploadMultiple, getFiles }
 }
 
-const createQueries = (currentUser: any, type: string) => {
-  console.log("-> type is: ", type)
-  const queries = [
-    Query.and([Query.or([
-      Query.equal('owner', [currentUser.$id]),
-      Query.contains('users', [currentUser.email]),
-    ]),
-    Query.equal('type', type)
-  ])
-  ]
-    // TODO: search, sort, limits ...
-  return queries
-}
-
-export const getFiles = async (type: string = '') => {
+export const getFiles = async () => {
   const { databases, account } = AppwriteAdmin.getState()
-
   let currentUser
   try {
     const accountData = await account.get()  // throws if no session
@@ -183,14 +168,11 @@ export const getFiles = async (type: string = '') => {
   } catch (err) {
     console.error("No valid session. Please log in first.", err)
     throw err
-  }
-
-  const queries = createQueries(currentUser, type)
-
+  }  
   const files = await databases.listDocuments(
     appwriteConfig.databaseId,
     appwriteConfig.filesCollectionId,
-    queries
+    useQueryStore.getState().queries
   )
 
   return parseStringify(files)

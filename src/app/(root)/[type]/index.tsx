@@ -1,25 +1,33 @@
-import {  useLocalSearchParams } from 'expo-router'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import Colors, { Colors as stColors, util as stUtil } from "../../../../Styleguide"
+import Colors, { util as stUtil } from "../../../../Styleguide"
 import { getFiles } from "../../../../lib/hooks/useFiles"
 import { useEffect, useState } from 'react'
 import { parseStringify } from '../../../../lib/util'
 import Card from '../../../components/Card'
-import ShareFileModal from "../../../modals/ShareModal"
 import { getCurrentUser } from '../../../../lib/hooks/userHook'
+import { useQueryStore } from '../../../../lib/stores/QueryStore'
+import { usePathname } from 'expo-router'
+import SortDropdown from '../../../components/SortDropdown'
 export default function Index() {
-    const { type } = useLocalSearchParams()
     const [files, setFiles] = useState([])
     const [user, setUser] = useState()
+    const setQueries = useQueryStore(state => state.setQueries)
+    const setSort = useQueryStore(state => state.setSort)
+    const queries = useQueryStore(state => state.queries)
+    const type = usePathname().split('/')[1]
+    useEffect(() => {
+      user && setQueries(type)
+    }, [type])
+    
     useEffect(() => {
       const _getFiles = async () => {
-        const _files = await getFiles(type)
+        const _files = await getFiles()
         setFiles(parseStringify(_files.documents))
         const _user = await getCurrentUser()
         setUser(_user)
       }
       _getFiles()
-    }, [type])
+    }, [queries])
     
     return (
       <View style={styles.container}>
@@ -29,12 +37,15 @@ export default function Index() {
             <Text style={styles.title}>{ (type as string).charAt(0).toUpperCase() + type.slice(1) + (!["dashboard", "media"].includes(type as string)  ? "s" : "") }</Text>
             <Text style={styles.totalStorag}>Total: <Text style={{fontWeight: 500}}>0.0 MB</Text></Text>
           </View>
-          <Text> Sorting here </Text>
+          <SortDropdown onSortChange={(key) => {
+            setSort(key)
+            setQueries(type)
+          }}/>
         </View>
 
         {/* Body */}
         <ScrollView style={{height: '100%', width: '100%'}}> 
-          <View style={{display: 'flex', flexDirection: "row", justifyContent: 'space-evenly', flexWrap: 'wrap', height: '100%', width: '100%'}}>
+          <View style={{display: 'flex', flexDirection: "row", justifyContent: 'flex-start', flexWrap: 'wrap', height: '100%', width: '100%'}}>
             { 
               !(files.length > 0) 
               ? (<Text>No files availble</Text>)
@@ -63,7 +74,7 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'row',
     justifyContent: "space-between",
-    paddingHorizontal: 10
+    padding: 25
   },
   title: {
     color: Colors.oxfordBlue,
@@ -73,4 +84,4 @@ const styles = StyleSheet.create({
     ...stUtil.body1,
     fontWeight: 400
   }
-});
+})

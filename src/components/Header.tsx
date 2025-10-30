@@ -3,20 +3,23 @@ import { Image, TouchableOpacity, View } from 'react-native'
 import { StyleSheet } from 'react-native'
 import Search from './Search'
 import FileUploader from "../components/FileUploader"
+import { Link } from 'expo-router'
 const Header: FC = () => {
   return (
     <View style={styles.container}>
         <Search/>
         <View style={styles.headerWrapper}> {/* Header Wrapper */}
             <FileUploader />
-            <TouchableOpacity style={styles.logoutContainer}>
+            <Link style={styles.logoutContainer}
+                href={"/logout"}
+            >
                 <Image
                     source={require("../../assets/logout.png")}
                     style={{width: 24, height: 24}}
                     alt='logout'
                     resizeMode='contain'
                 />
-            </TouchableOpacity>
+            </Link>
         </View>
     </View>
   )
@@ -37,6 +40,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#e5e5e5ff", 
         height: 50, 
         width: 50, 
+        display: "flex",
         borderRadius: "100%", 
         justifyContent: "center", 
         alignItems: "center", 

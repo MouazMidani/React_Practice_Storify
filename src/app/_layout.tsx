@@ -21,6 +21,9 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
+    console.log("-> ", status)
+    if(["loading", "idle"].includes(status))
+      return
     if (status === "authenticated"
       && !["dashboard", "image", "document", "media", "other"].includes(routePath)) {
       router.replace("/dashboard")
