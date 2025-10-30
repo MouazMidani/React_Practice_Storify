@@ -153,6 +153,34 @@ export function useAppwriteUpload() {
   return { uploadFile, uploadMultiple, getFiles }
 }
 
+export const getAllFiles = async () => {
+  const { databases, account } = AppwriteAdmin.getState()
+  let currentUser
+  try {
+    const accountData = await account.get()
+    currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.usersCollectionId,
+      [Query.equal("accountId", accountData.$id)],
+    ).then(res => res.documents[0])
+    
+    if (!currentUser) throw new Error("User not found")
+  } catch (err) {
+    console.error("No valid session. Please log in first.", err)
+    throw err
+  }  
+  const files = await databases.listDocuments(
+    appwriteConfig.databaseId,
+    appwriteConfig.filesCollectionId,
+    [Query.or([
+      Query.equal("owner", [currentUser.$id]),
+      Query.contains("users", [currentUser.email]),
+    ])]
+  )
+
+  return parseStringify(files)
+}
+
 export const getFiles = async () => {
   const { databases, account } = AppwriteAdmin.getState()
   let currentUser
@@ -353,5 +381,69 @@ export const unshareFile = async (fileId: string, userIds: string[]) => {
   } catch (err) {
     console.error("Error unsharing file:", err)
     throw err
+  }
+}
+
+export async function getTotalSpaceUsed() {
+  const { databases, account } = AppwriteAdmin.getState()
+
+  try {
+    const accountData = await account.get()
+    // Fetch the user document based on the account ID
+    const currentUser = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.usersCollectionId,
+      [Query.equal("accountId", accountData.$id)],
+    ).then(res => res.documents[0])
+    
+    if (!currentUser) throw new Error("User is not authenticated.")
+
+    // List all files owned by the current user
+    const files = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.filesCollectionId,
+      [Query.equal("owner", [currentUser.$id])],
+    );
+
+    // Initialize the total space object based on the blueprint
+    const totalSpace: {
+        [key: string]: any; // Allows dynamic access like totalSpace[fileType]
+        used: number;
+        all: number;
+    } = {
+      image: { size: 0, latestDate: "" },
+      document: { size: 0, latestDate: "" },
+      video: { size: 0, latestDate: "" },
+      audio: { size: 0, latestDate: "" },
+      other: { size: 0, latestDate: "" },
+      used: 0,
+      all: 2 * 1024 * 1024 * 1024 /* 2GB available bucket storage (2 * 10^9 bytes) */,
+    };
+
+    // Iterate through all files to calculate total size and latest update date per type
+    files.documents.forEach((file: any) => { // Use 'any' if specific File model is not imported
+      const fileType = file.type as 'image' | 'document' | 'video' | 'audio' | 'other'; // Use your actual FileType
+      
+      // Ensure fileType is one of the keys defined in totalSpace
+      if (totalSpace[fileType]) { 
+        totalSpace[fileType].size += file.size;
+        totalSpace.used += file.size;
+  
+        // Update latest update date
+        if (
+          !totalSpace[fileType].latestDate ||
+          new Date(file.$updatedAt) > new Date(totalSpace[fileType].latestDate)
+        ) {
+          totalSpace[fileType].latestDate = file.$updatedAt;
+        }
+      }
+    });
+
+    return parseStringify(totalSpace);
+  } catch (error) {
+    // Assuming handleError is defined and imported
+    // handleError(error, "Error calculating total space used:, "); 
+    console.error("Error calculating total space used:", error);
+    throw error;
   }
 }
